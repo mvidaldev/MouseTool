@@ -217,6 +217,20 @@ The diagnostic log file is written next to the executable as:
 
 Use logging only when you need to investigate behavior during testing.
 
+## License
+
+MouseTool is licensed under the `GNU GPL-3.0`.
+
+That means:
+
+- you can use, study, modify, and redistribute the software
+- if you distribute modified versions, you must also keep them under GPL-3.0
+- source code for redistributed derivatives must remain available under the same license
+
+License file:
+
+- [LICENSE](Z:\projetos\Codex\MouseTool\LICENSE)
+
 ## Build
 
 ```powershell
