@@ -1,7 +1,7 @@
 param(
     [string]$Runtime = 'win-x64',
     [string]$Configuration = 'Release',
-    [string]$AppVersion = '1.0.0'
+    [string]$AppVersion = '2.0.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +10,7 @@ $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $publishDir = Join-Path $projectRoot 'release\MouseTool'
 $zipPath = Join-Path $projectRoot ("release\MouseTool-{0}.zip" -f $Runtime)
 $installerPath = Join-Path $projectRoot 'release\MouseTool-Setup.exe'
+$legacyInstallerPath = Join-Path $projectRoot 'release\MouseTool-Installer.exe'
 $innoScriptPath = Join-Path $projectRoot 'Installer\MouseTool.iss'
 $innoCompiler = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
 
@@ -31,7 +32,7 @@ if (-not $innoCompiler) {
     throw 'Inno Setup compiler (ISCC.exe) was not found.'
 }
 
-foreach ($path in @($publishDir, $zipPath, $installerPath)) {
+foreach ($path in @($publishDir, $zipPath, $installerPath, $legacyInstallerPath)) {
     if (Test-Path $path) {
         Remove-Item -LiteralPath $path -Recurse -Force
     }
@@ -43,6 +44,7 @@ foreach ($path in @($publishDir, $zipPath, $installerPath)) {
     -r $Runtime `
     --self-contained false `
     -p:PublishSingleFile=false `
+    -p:DebugSymbols=false `
     -p:DebugType=None `
     -o $publishDir
 

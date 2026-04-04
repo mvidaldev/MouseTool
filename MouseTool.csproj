@@ -15,8 +15,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="MainForm.cs" />
-    <Compile Remove="MainForm.Designer.cs" />
-    <EmbeddedResource Remove="MainForm.resx" />
+    <ApplicationDefinition Include="Frontend\App.xaml" />
   </ItemGroup>
 </Project>

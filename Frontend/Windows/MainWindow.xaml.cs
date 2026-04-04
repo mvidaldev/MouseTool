@@ -64,7 +64,7 @@ internal partial class MainWindow : Window
         SupportEmailRun.Text = T("OverviewSupportEmail");
 
         SetIconButtonContent(HelpButton, "?", T("HelpButton"));
-        SetIconButtonContent(CoffeeButton, "?", T("CoffeeButton"));
+        SetIconButtonContent(CoffeeButton, "☕", T("CoffeeButton"));
         HelpHintText.Text = T("OverviewHelpHint");
         CoffeeHintText.Text = T("OverviewCoffeeHint");
 
@@ -171,7 +171,7 @@ internal partial class MainWindow : Window
         SupportNoteText.Text = "Suggestions and day-to-day feedback help improve the project.";
         SupportEmailRun.Text = "mvidaldev@outlook.com";
         SetIconButtonContent(HelpButton, "?", "Open Help");
-        SetIconButtonContent(CoffeeButton, "?", "Send a Coffee");
+        SetIconButtonContent(CoffeeButton, "☕", "Send a Coffee");
         HelpHintText.Text = "Open the help guide for setup and usage.";
         CoffeeHintText.Text = "Support the project if it helped your workflow.";
         OverviewTab.Header = "Overview";

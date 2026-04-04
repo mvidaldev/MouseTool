@@ -125,23 +125,80 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Background="#F7FAFD" Margin="0">
-                        <Grid>
-                            <StackPanel Width="250" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock x:Name="SupportTitleText" TextAlignment="Center" FontSize="20" FontWeight="SemiBold" Foreground="#15335B"/>
-                                <TextBlock x:Name="GratitudeText" Margin="0,18,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="14" Foreground="#586476"/>
-                                <TextBlock x:Name="SupportNoteText" Margin="0,14,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="#586476"/>
-                                <TextBlock Margin="0,18,0,0" TextAlignment="Center">
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Background="#F7FAFD" Margin="0" Padding="18">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <Grid Width="248">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock x:Name="SupportTitleText"
+                                           Grid.Row="0"
+                                           TextAlignment="Center"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           Foreground="#15335B"/>
+                                <TextBlock x:Name="GratitudeText"
+                                           Grid.Row="1"
+                                           Margin="0,14,0,0"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           FontSize="13"
+                                           Foreground="#586476"/>
+                                <TextBlock x:Name="SupportNoteText"
+                                           Grid.Row="2"
+                                           Margin="0,10,0,0"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           FontSize="12.5"
+                                           Foreground="#586476"/>
+                                <TextBlock Grid.Row="3"
+                                           Margin="0,14,0,0"
+                                           TextAlignment="Center">
                                     <Hyperlink x:Name="SupportEmailLink" Click="SupportEmailLink_Click">
                                         <Run x:Name="SupportEmailRun"/>
                                     </Hyperlink>
                                 </TextBlock>
-                                <Button x:Name="HelpButton" Margin="0,26,0,0" Style="{StaticResource ActionButtonStyle}" Click="HelpButton_Click"/>
-                                <TextBlock x:Name="HelpHintText" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="#586476"/>
-                                <Button x:Name="CoffeeButton" Margin="0,22,0,0" Style="{StaticResource WarmButtonStyle}" Click="CoffeeButton_Click"/>
-                                <TextBlock x:Name="CoffeeHintText" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="#586476"/>
-                            </StackPanel>
-                        </Grid>
+                                <Button x:Name="HelpButton"
+                                        Grid.Row="4"
+                                        Margin="0,20,0,0"
+                                        Height="40"
+                                        MinWidth="0"
+                                        Width="248"
+                                        Style="{StaticResource ActionButtonStyle}"
+                                        Click="HelpButton_Click"/>
+                                <TextBlock x:Name="HelpHintText"
+                                           Grid.Row="5"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           FontSize="12.5"
+                                           Foreground="#586476"/>
+                                <Button x:Name="CoffeeButton"
+                                        Grid.Row="6"
+                                        Margin="0,16,0,0"
+                                        Height="40"
+                                        MinWidth="0"
+                                        Width="248"
+                                        Style="{StaticResource WarmButtonStyle}"
+                                        Click="CoffeeButton_Click"/>
+                                <TextBlock x:Name="CoffeeHintText"
+                                           Grid.Row="7"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           FontSize="12.5"
+                                           Foreground="#586476"/>
+                            </Grid>
+                        </ScrollViewer>
                     </Border>
                 </Grid>
             </TabItem>

@@ -8,6 +8,7 @@
 AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#AppVersion}
+AppVerName={#MyAppName} {#AppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -24,6 +25,10 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
+VersionInfoVersion={#AppVersion}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription={#MyAppName} Setup
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
