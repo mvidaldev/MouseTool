@@ -1,0 +1,53 @@
+<Window x:Class="MouseTool.CloseChoiceWindow"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MouseTool"
+        Width="480"
+        Height="245"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="SingleBorderWindow"
+        Background="#F1F4F8"
+        ShowInTaskbar="False">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="QuestionTextBlock"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="#213D5B"/>
+
+        <TextBlock x:Name="BodyTextBlock"
+                   Grid.Row="1"
+                   Margin="0,14,0,0"
+                   TextWrapping="Wrap"
+                   FontSize="14"
+                   Foreground="#586476"/>
+
+        <StackPanel Grid.Row="3"
+                    Margin="0,24,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button x:Name="TrayButton"
+                    Width="145"
+                    Height="38"
+                    Margin="0,0,10,0"
+                    Click="TrayButton_Click"/>
+            <Button x:Name="ExitButton"
+                    Width="115"
+                    Height="38"
+                    Margin="0,0,10,0"
+                    Click="ExitButton_Click"/>
+            <Button x:Name="CancelButtonElement"
+                    Width="95"
+                    Height="38"
+                    Click="CancelButtonElement_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

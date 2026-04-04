@@ -1,6 +1,6 @@
 # MouseTool
 
-`MouseTool` is a Windows tray utility built with `.NET 10` and `Windows Forms`.
+`MouseTool` is a Windows tray utility built with `.NET 10`, `WPF`, and a small amount of native Win32 interop.
 
 It is designed for dual-screen setups where:
 
@@ -9,7 +9,7 @@ It is designed for dual-screen setups where:
 - the app should remember the last useful mouse position on the primary screen
 - the cursor should return to that saved primary-screen position after touchscreen interaction ends
 
-The project was inspired by the workflow described by Touch Mouse Tools and was adapted into a standalone desktop utility focused on a practical day-to-day Windows workflow.
+The project was inspired by the workflow described by Touch Mouse Tools and adapted into a standalone desktop utility focused on a practical day-to-day Windows workflow.
 
 ## What the app does
 
@@ -22,6 +22,7 @@ Core behavior:
 - restores the cursor to the saved primary-monitor position when physical mouse activity resumes
 - can optionally restore immediately when touch ends
 - can optionally allow the physical mouse to enter the touchscreen monitor area
+- keeps the app available through a tray icon and desktop control panel
 
 ## Why this is not a Windows Service
 
@@ -40,7 +41,7 @@ it must run as a per-user background application instead of a true Windows Servi
 MouseTool currently includes:
 
 - tray-based background execution
-- a Windows Forms control panel
+- a WPF control panel with fixed-size desktop layout
 - manual monitor selection with readable names
 - configurable restore behavior
 - optional startup with Windows
@@ -48,8 +49,22 @@ MouseTool currently includes:
 - multilingual UI driven by JSON translation files
 - contextual help file opening based on the selected language
 - release packaging
-- installer
+- setup installer
 - uninstaller
+
+## Architecture
+
+The project is now fully centered on WPF for the desktop interface.
+
+Main layers:
+
+- `App.xaml` and `App.xaml.cs` for WPF application startup
+- `MainWindow.xaml` and `MainWindow.xaml.cs` for the main dashboard
+- `CloseChoiceWindow.xaml` and `CloseChoiceWindow.xaml.cs` for the close/minimize decision dialog
+- `Program.cs` for application coordination, configuration, localization, help, startup registration, and the input engine
+- `TrayIconHost.cs` for the native tray icon and tray menu
+- `MonitorManager.cs` for native monitor enumeration without Windows Forms
+- `NativeMethods.cs` for input hooks, cursor movement, tray interop, and monitor APIs
 
 ## Main UI
 
@@ -61,6 +76,7 @@ The application window includes:
   - `Displays`
   - `Behavior`
   - `Diagnostics`
+- footer command bar with run, pause, tray, config, and apply actions
 
 ### Overview tab
 
@@ -86,7 +102,7 @@ Lets the user choose:
 - the primary display
 - the touchscreen display
 
-Monitor names are shown in a more readable format than raw device names.
+Monitor names are shown in a readable format based on role, order, resolution, and coordinates.
 
 ### Behavior tab
 
@@ -105,6 +121,18 @@ Current controls:
 - open log file
 
 Logging is disabled by default.
+
+## Tray behavior
+
+The app stays available through the system tray and supports:
+
+- opening the dashboard from the tray
+- starting protection
+- pausing protection
+- opening help
+- exiting the app
+- opening the dashboard with left click or double click on the tray icon
+- opening the tray menu with right click
 
 ## Language system
 
@@ -143,7 +171,17 @@ Current language files:
 
 MouseTool generates localized help files in the output folder under `help`.
 
-The app opens the help file that matches the currently selected language when possible, with fallback behavior when needed.
+Supported help files currently include:
+
+- `HELP.en.html`
+- `HELP.pt-BR.html`
+- `HELP.fr.html`
+- `HELP.es.html`
+- `HELP.de.html`
+- `HELP.it.html`
+- `HELP.ru.html`
+
+The app opens the help file that matches the currently selected language when possible, with fallback to English when necessary.
 
 ## Configuration
 
@@ -185,13 +223,13 @@ Use logging only when you need to investigate behavior during testing.
 $env:DOTNET_CLI_HOME = "$PWD\\.dotnet-home"
 $env:NUGET_PACKAGES = "$PWD\\.nuget\\packages"
 $env:NUGET_CONFIG_FILE = "$PWD\\NuGet.Config"
-& "C:\\Program Files\\dotnet\\dotnet.exe" build
+& "C:\Program Files\dotnet\dotnet.exe" build
 ```
 
 ## Run locally
 
 ```powershell
-& "C:\\Program Files\\dotnet\\dotnet.exe" run
+& "C:\Program Files\dotnet\dotnet.exe" run
 ```
 
 ## Publish release
@@ -206,17 +244,17 @@ This generates:
 
 - release folder
 - zip package
-- installer executable
+- setup installer executable
 
 Current release outputs:
 
 - [MouseTool.exe](Z:\projetos\Codex\MouseTool\release\MouseTool\MouseTool.exe)
 - [MouseTool-win-x64.zip](Z:\projetos\Codex\MouseTool\release\MouseTool-win-x64.zip)
-- [MouseTool-Installer.exe](Z:\projetos\Codex\MouseTool\release\MouseTool-Installer.exe)
+- [MouseTool-Setup.exe](Z:\projetos\Codex\MouseTool\release\MouseTool-Setup.exe)
 
 ## Installer
 
-The installer is generated with `IExpress`.
+The installer is generated with `Inno Setup`.
 
 It currently:
 
@@ -224,10 +262,12 @@ It currently:
 - creates application shortcuts
 - launches the app after installation
 - registers uninstall information in Windows
+- includes uninstall support through Windows settings and the Start Menu
 
 Installer source files:
 
 - [publish-release.ps1](Z:\projetos\Codex\MouseTool\publish-release.ps1)
+- [MouseTool.iss](Z:\projetos\Codex\MouseTool\Installer\MouseTool.iss)
 - [install.cmd](Z:\projetos\Codex\MouseTool\Installer\install.cmd)
 - [install-mousetool.ps1](Z:\projetos\Codex\MouseTool\Installer\install-mousetool.ps1)
 
@@ -250,8 +290,15 @@ Uninstaller source files:
 
 Main files:
 
+- [App.xaml](Z:\projetos\Codex\MouseTool\App.xaml)
+- [App.xaml.cs](Z:\projetos\Codex\MouseTool\App.xaml.cs)
+- [MainWindow.xaml](Z:\projetos\Codex\MouseTool\MainWindow.xaml)
+- [MainWindow.xaml.cs](Z:\projetos\Codex\MouseTool\MainWindow.xaml.cs)
+- [CloseChoiceWindow.xaml](Z:\projetos\Codex\MouseTool\CloseChoiceWindow.xaml)
+- [CloseChoiceWindow.xaml.cs](Z:\projetos\Codex\MouseTool\CloseChoiceWindow.xaml.cs)
 - [Program.cs](Z:\projetos\Codex\MouseTool\Program.cs)
-- [MainForm.cs](Z:\projetos\Codex\MouseTool\MainForm.cs)
+- [TrayIconHost.cs](Z:\projetos\Codex\MouseTool\TrayIconHost.cs)
+- [MonitorManager.cs](Z:\projetos\Codex\MouseTool\MonitorManager.cs)
 - [NativeMethods.cs](Z:\projetos\Codex\MouseTool\NativeMethods.cs)
 - [MouseTool.csproj](Z:\projetos\Codex\MouseTool\MouseTool.csproj)
 
@@ -263,9 +310,10 @@ Resources:
 ## Technical notes
 
 - target framework: `net10.0-windows`
-- UI framework: `Windows Forms`
+- UI framework: `WPF`
+- tray implementation: native shell icon via Win32 interop
 - execution model: tray app running in the logged-in desktop session
-- monitor detection supports manual selection
+- monitor detection uses native monitor enumeration with manual selection support
 - touchscreen behavior may vary depending on hardware driver behavior
 - fallback logic exists for systems where touch input is exposed differently
 
@@ -278,5 +326,4 @@ Behavior and workflow inspiration:
 
 Installer packaging references:
 
-- [IExpress command line example](https://stackoverflow.com/questions/22266511/iexpress-command-line-example-to-create-exe-packages)
-- [SS64 IExpress SED format](https://ss64.com/nt/iexpress-sed.html)
+- [Inno Setup](https://jrsoftware.org/isinfo.php)

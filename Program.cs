@@ -1,36 +1,21 @@
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Text.Json;
-using System.Windows.Forms;
 using Microsoft.Win32;
 
 namespace MouseTool;
 
-internal static class Program
-{
-    [STAThread]
-    static void Main()
-    {
-        ApplicationConfiguration.Initialize();
-        Application.Run(new MouseKeeperApplicationContext());
-    }
-}
-
-internal sealed class MouseKeeperApplicationContext : ApplicationContext
+internal sealed class MouseKeeperApplicationContext : IDisposable
 {
     private const string StartupValueName = "MouseTool";
     private readonly string _configPath;
     private readonly string _logPath;
     private readonly string _helpDirectory;
-    private readonly NotifyIcon _notifyIcon;
+    private readonly TrayIconHost _trayIcon;
     private MouseKeeperConfig _config;
     private MouseKeeperEngine? _engine;
-    private MainForm? _mainForm;
-    private ToolStripMenuItem? _startMenuItem;
-    private ToolStripMenuItem? _stopMenuItem;
-    private ToolStripMenuItem? _openDashboardMenuItem;
-    private ToolStripMenuItem? _openHelpMenuItem;
-    private ToolStripMenuItem? _exitMenuItem;
+    private MainWindow? _mainWindow;
     private bool _exitRequested;
 
     public MouseKeeperApplicationContext()
@@ -46,14 +31,7 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
         HelpFileWriter.EnsureHelpFiles(_helpDirectory);
         EnsureMonitorDefaults();
 
-        _notifyIcon = new NotifyIcon
-        {
-            Text = AppLocalizer.Get(_config.SelectedLanguage, "AppName"),
-            Visible = true,
-            Icon = BrandAssets.AppIcon,
-            ContextMenuStrip = BuildMenu()
-        };
-        _notifyIcon.DoubleClick += (_, _) => ShowMainForm();
+        _trayIcon = new TrayIconHost(BrandAssets.AppIcon, ShowMainForm, () => StartProtection(), () => StopProtection(), OpenHelpFile, ExitApplication);
 
         if (_config.Enabled)
         {
@@ -62,7 +40,6 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
 
         ShowMainForm();
         ApplyLanguageToThread();
-        Application.ApplicationExit += OnApplicationExit;
     }
 
     public bool IsRunning => _engine is not null;
@@ -77,8 +54,8 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
 
     public IReadOnlyList<DisplayOption> GetDisplayOptions()
     {
-        return Screen.AllScreens
-            .Select((screen, index) => DisplayOption.FromScreen(screen, index, GetLocalizedMonitorRole(screen, index)))
+        return MonitorManager.GetAllMonitors()
+            .Select((screen, index) => DisplayOption.FromMonitor(screen, index, GetLocalizedMonitorRole(screen, index)))
             .ToList();
     }
 
@@ -188,7 +165,7 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
         _config.LoggingEnabled = true;
         SaveConfig(_config);
         MouseKeeperLog.Write("Manual logging enabled from UI.");
-        _mainForm?.RefreshView();
+        _mainWindow?.RefreshView();
     }
 
     public void DisableLogging()
@@ -197,7 +174,7 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
         MouseKeeperLog.SetEnabled(false);
         _config.LoggingEnabled = false;
         SaveConfig(_config);
-        _mainForm?.RefreshView();
+        _mainWindow?.RefreshView();
     }
 
     public void OpenLogFile()
@@ -254,7 +231,7 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
 
         if (_config.StartWithWindows)
         {
-            var exePath = Application.ExecutablePath;
+            var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
             key.SetValue(StartupValueName, $"\"{exePath}\"");
         }
         else
@@ -278,49 +255,52 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
 
     public void ShowRestartRequiredMessage()
     {
-        MessageBox.Show(T("RestartRequiredMessage"), T("RestartRequiredTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        System.Windows.MessageBox.Show(
+            T("RestartRequiredMessage"),
+            T("RestartRequiredTitle"),
+            System.Windows.MessageBoxButton.OK,
+            System.Windows.MessageBoxImage.Information);
     }
 
     public void ShowMainForm()
     {
-        if (_mainForm is null || _mainForm.IsDisposed)
+        if (_mainWindow is null)
         {
-            _mainForm = new MainForm(this)
-            {
-                Icon = BrandAssets.AppIcon
-            };
-            _mainForm.FormClosed += (_, _) =>
+            _mainWindow = new MainWindow(this);
+            _mainWindow.Closed += (_, _) =>
             {
                 if (!_exitRequested)
                 {
-                    _mainForm = null;
+                    _mainWindow = null;
                 }
             };
         }
 
-        if (!_mainForm.Visible)
+        if (!_mainWindow.IsVisible)
         {
-            _mainForm.Show();
+            _mainWindow.Show();
         }
 
-        if (_mainForm.WindowState == FormWindowState.Minimized)
+        if (_mainWindow.WindowState == System.Windows.WindowState.Minimized)
         {
-            _mainForm.WindowState = FormWindowState.Normal;
+            _mainWindow.WindowState = System.Windows.WindowState.Normal;
         }
 
-        _mainForm.BringToFront();
-        _mainForm.Activate();
-        _mainForm.RefreshView();
+        _mainWindow.Activate();
+        _mainWindow.Topmost = true;
+        _mainWindow.Topmost = false;
+        _mainWindow.Focus();
+        _mainWindow.RefreshView();
     }
 
     public void MinimizeMainFormToTray()
     {
-        if (_mainForm is null || _mainForm.IsDisposed)
+        if (_mainWindow is null)
         {
             return;
         }
 
-        _mainForm.Hide();
+        _mainWindow.Hide();
         ShowTrayBalloon(T("TrayMinimizedTitle"), T("TrayMinimizedMessage"));
     }
 
@@ -328,9 +308,9 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
     {
         _exitRequested = true;
         MouseKeeperLog.Write("Exit requested.");
-        _mainForm?.AllowCloseWithoutPrompt();
-        _mainForm?.Close();
-        ExitThread();
+        _mainWindow?.AllowCloseWithoutPrompt();
+
+        System.Windows.Application.Current?.Shutdown();
     }
 
     private void ApplyLanguageToThread()
@@ -340,51 +320,22 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
         CultureInfo.DefaultThreadCurrentCulture = culture;
     }
 
-    private ContextMenuStrip BuildMenu()
-    {
-        var menu = new ContextMenuStrip();
-        _openDashboardMenuItem = new ToolStripMenuItem();
-        _openDashboardMenuItem.Click += (_, _) => ShowMainForm();
-
-        _startMenuItem = new ToolStripMenuItem();
-        _startMenuItem.Click += (_, _) => StartProtection();
-
-        _stopMenuItem = new ToolStripMenuItem();
-        _stopMenuItem.Click += (_, _) => StopProtection();
-
-        _openHelpMenuItem = new ToolStripMenuItem();
-        _openHelpMenuItem.Click += (_, _) => OpenHelpFile();
-
-        _exitMenuItem = new ToolStripMenuItem();
-        _exitMenuItem.Click += (_, _) => ExitApplication();
-
-        menu.Items.Add(_openDashboardMenuItem);
-        menu.Items.Add(_startMenuItem);
-        menu.Items.Add(_stopMenuItem);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(_openHelpMenuItem);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(_exitMenuItem);
-        ApplyMenuTexts();
-        return menu;
-    }
-
     private void ApplyMenuTexts()
     {
-        if (_notifyIcon is not null)
-        {
-            _notifyIcon.Text = T("AppName");
-        }
-        if (_openDashboardMenuItem is not null) _openDashboardMenuItem.Text = T("MenuOpenDashboard");
-        if (_startMenuItem is not null) _startMenuItem.Text = T("MenuStartProtection");
-        if (_stopMenuItem is not null) _stopMenuItem.Text = T("MenuPauseProtection");
-        if (_openHelpMenuItem is not null) _openHelpMenuItem.Text = T("MenuHelp");
-        if (_exitMenuItem is not null) _exitMenuItem.Text = T("MenuExit");
+        _trayIcon.Update(
+            T("AppName"),
+            T("MenuOpenDashboard"),
+            T("MenuStartProtection"),
+            T("MenuPauseProtection"),
+            T("MenuHelp"),
+            T("MenuExit"),
+            !IsRunning,
+            IsRunning);
     }
 
-    private string GetLocalizedMonitorRole(Screen screen, int index)
+    private string GetLocalizedMonitorRole(MonitorInfo screen, int index)
     {
-        if (screen.Primary)
+        if (screen.IsPrimary)
         {
             return T("MonitorRoleMain");
         }
@@ -409,9 +360,9 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
 
     private void EnsureMonitorDefaults()
     {
-        var screens = Screen.AllScreens;
-        var primary = screens.FirstOrDefault(s => s.Primary) ?? screens.FirstOrDefault();
-        var secondary = screens.FirstOrDefault(s => !s.Primary);
+        var screens = MonitorManager.GetAllMonitors();
+        var primary = screens.FirstOrDefault(s => s.IsPrimary) ?? screens.FirstOrDefault();
+        var secondary = screens.FirstOrDefault(s => !s.IsPrimary);
 
         if (primary is not null && string.IsNullOrWhiteSpace(_config.PrimaryMonitorDeviceName))
         {
@@ -441,41 +392,20 @@ internal sealed class MouseKeeperApplicationContext : ApplicationContext
 
     private void ShowTrayBalloon(string title, string message)
     {
-        _notifyIcon.BalloonTipTitle = title;
-        _notifyIcon.BalloonTipText = message;
-        _notifyIcon.ShowBalloonTip(3000);
+        _trayIcon.ShowBalloon(title, message);
     }
 
     private void UpdateState()
     {
-        if (_startMenuItem is not null)
-        {
-            _startMenuItem.Enabled = !IsRunning;
-        }
-
-        if (_stopMenuItem is not null)
-        {
-            _stopMenuItem.Enabled = IsRunning;
-        }
-
         ApplyMenuTexts();
-        _mainForm?.RefreshView();
+        _mainWindow?.RefreshView();
     }
 
-    private void OnApplicationExit(object? sender, EventArgs e)
+    public void Dispose()
     {
-        _notifyIcon.Visible = false;
+        _trayIcon.Dispose();
         _engine?.Dispose();
         _engine = null;
-    }
-
-    protected override void ExitThreadCore()
-    {
-        Application.ApplicationExit -= OnApplicationExit;
-        _notifyIcon.Visible = false;
-        _engine?.Dispose();
-        _engine = null;
-        base.ExitThreadCore();
     }
 }
 
@@ -514,9 +444,9 @@ internal sealed class MouseKeeperEngine : IDisposable
 
     private void RefreshMonitorDefaults()
     {
-        var screens = Screen.AllScreens;
-        var primary = screens.FirstOrDefault(s => s.Primary) ?? screens.FirstOrDefault();
-        var secondary = screens.FirstOrDefault(s => !s.Primary);
+        var screens = MonitorManager.GetAllMonitors();
+        var primary = screens.FirstOrDefault(s => s.IsPrimary) ?? screens.FirstOrDefault();
+        var secondary = screens.FirstOrDefault(s => !s.IsPrimary);
 
         if (primary is not null && string.IsNullOrWhiteSpace(_config.PrimaryMonitorDeviceName))
         {
@@ -694,23 +624,23 @@ internal sealed class MouseKeeperEngine : IDisposable
             return true;
         }
 
-        return Screen.FromPoint(point) is { Primary: false };
+        return MonitorManager.FromPoint(point) is { IsPrimary: false };
     }
 
-    private Screen? GetConfiguredPrimaryMonitor()
+    private MonitorInfo? GetConfiguredPrimaryMonitor()
     {
-        return Screen.AllScreens.FirstOrDefault(s => string.Equals(s.DeviceName, _config.PrimaryMonitorDeviceName, StringComparison.OrdinalIgnoreCase))
-            ?? Screen.AllScreens.FirstOrDefault(s => s.Primary);
+        return MonitorManager.FindByDeviceName(_config.PrimaryMonitorDeviceName)
+            ?? MonitorManager.GetPrimaryMonitor();
     }
 
-    private Screen? GetConfiguredTouchMonitor()
+    private MonitorInfo? GetConfiguredTouchMonitor()
     {
         if (!string.IsNullOrWhiteSpace(_config.TouchMonitorDeviceName))
         {
-            return Screen.AllScreens.FirstOrDefault(s => string.Equals(s.DeviceName, _config.TouchMonitorDeviceName, StringComparison.OrdinalIgnoreCase));
+            return MonitorManager.FindByDeviceName(_config.TouchMonitorDeviceName);
         }
 
-        return Screen.AllScreens.FirstOrDefault(s => !s.Primary);
+        return MonitorManager.GetAllMonitors().FirstOrDefault(s => !s.IsPrimary);
     }
 
     private static Point ClampPointToBounds(Point point, Rectangle bounds)
@@ -789,7 +719,7 @@ internal sealed class DisplayOption
     public required string DeviceName { get; init; }
     public required string DisplayName { get; init; }
 
-    public static DisplayOption FromScreen(Screen screen, int index, string role)
+    public static DisplayOption FromMonitor(MonitorInfo screen, int index, string role)
     {
         var bounds = screen.Bounds;
         var ordinal = index + 1;

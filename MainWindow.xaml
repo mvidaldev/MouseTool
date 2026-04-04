@@ -1,0 +1,231 @@
+<Window x:Class="MouseTool.MainWindow"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MouseTool"
+        Width="1080"
+        Height="760"
+        MinWidth="1080"
+        MinHeight="760"
+        MaxWidth="1080"
+        MaxHeight="760"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="#F1F4F8">
+    <Window.Resources>
+        <Style x:Key="CardBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="22"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="MinWidth" Value="175"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderBrush" Value="#1F4C7D"/>
+            <Setter Property="Foreground" Value="#14335B"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="#155390"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#155390"/>
+        </Style>
+        <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="#1A7C48"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#1A7C48"/>
+        </Style>
+        <Style x:Key="WarmButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="#FFE0B3"/>
+            <Setter Property="Foreground" Value="#6A3F00"/>
+            <Setter Property="BorderBrush" Value="#E0AF61"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,8"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="170"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="96"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#122B4A" Padding="28">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="240"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Image x:Name="LogoImage" Width="72" Height="72" Margin="0,14,18,0" VerticalAlignment="Top"/>
+                    <StackPanel>
+                        <Border x:Name="StatusBadge" Padding="12,6" Background="#DFF5E8" HorizontalAlignment="Left">
+                            <TextBlock x:Name="StatusBadgeText" FontSize="12" FontWeight="Bold" Foreground="#167844"/>
+                        </Border>
+                        <TextBlock x:Name="HeroTitleText" Margin="0,14,0,4" FontSize="34" FontWeight="SemiBold" Foreground="White"/>
+                        <TextBlock x:Name="HeroSubtitleText" Width="640" TextWrapping="Wrap" FontSize="15" Foreground="#D8E2EE"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="LanguageLabelText" Margin="0,0,0,8" FontSize="15" FontWeight="SemiBold" Foreground="#D8E2EE"/>
+                    <ComboBox x:Name="LanguageComboBox" Height="34" SelectionChanged="LanguageComboBox_SelectionChanged" DisplayMemberPath="DisplayName" SelectedValuePath="Code"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0,10,0,10">
+            <TabItem x:Name="OverviewTab">
+                <Grid Margin="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="320"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ScrollViewer Grid.Column="0" Margin="0,0,14,0" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <Border Style="{StaticResource CardBorderStyle}" BorderBrush="#155390" BorderThickness="0,4,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="StatusTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                    <TextBlock x:Name="StatusBodyText" Margin="0,12,0,12" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                    <TextBlock x:Name="AnchorValueText" FontSize="15" FontWeight="SemiBold" Foreground="#155390"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardBorderStyle}" BorderBrush="#155390" BorderThickness="0,4,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="HowTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                    <TextBlock x:Name="HowBodyText" Margin="0,12,0,0" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardBorderStyle}" BorderBrush="#1C7844" BorderThickness="0,4,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="WorkflowTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                    <TextBlock x:Name="WorkflowBodyText" Margin="0,12,0,0" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardBorderStyle}" BorderBrush="#B76F00" BorderThickness="0,4,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="TipsTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                    <TextBlock x:Name="TipsBodyText" Margin="0,12,0,0" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Background="#F7FAFD" Margin="0">
+                        <Grid>
+                            <StackPanel Width="250" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock x:Name="SupportTitleText" TextAlignment="Center" FontSize="20" FontWeight="SemiBold" Foreground="#15335B"/>
+                                <TextBlock x:Name="GratitudeText" Margin="0,18,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="14" Foreground="#586476"/>
+                                <TextBlock x:Name="SupportNoteText" Margin="0,14,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="#586476"/>
+                                <TextBlock Margin="0,18,0,0" TextAlignment="Center">
+                                    <Hyperlink x:Name="SupportEmailLink" Click="SupportEmailLink_Click">
+                                        <Run x:Name="SupportEmailRun"/>
+                                    </Hyperlink>
+                                </TextBlock>
+                                <Button x:Name="HelpButton" Margin="0,26,0,0" Style="{StaticResource ActionButtonStyle}" Click="HelpButton_Click"/>
+                                <TextBlock x:Name="HelpHintText" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="#586476"/>
+                                <Button x:Name="CoffeeButton" Margin="0,22,0,0" Style="{StaticResource WarmButtonStyle}" Click="CoffeeButton_Click"/>
+                                <TextBlock x:Name="CoffeeHintText" Margin="0,10,0,0" TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="#586476"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem x:Name="DisplaysTab">
+                <ScrollViewer Margin="14" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock x:Name="DisplaysTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <TextBlock x:Name="DisplaysBodyText" Margin="0,12,0,18" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                <TextBlock x:Name="DisplaysPrimaryLabel" FontSize="15" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <ComboBox x:Name="PrimaryDisplayComboBox" Margin="0,8,0,18" Height="36" DisplayMemberPath="DisplayName" SelectionChanged="MarkPendingChanges"/>
+                                <TextBlock x:Name="DisplaysTouchLabel" FontSize="15" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <ComboBox x:Name="TouchDisplayComboBox" Margin="0,8,0,0" Height="36" DisplayMemberPath="DisplayName" SelectionChanged="MarkPendingChanges"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock x:Name="DisplaysTipsTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <TextBlock x:Name="DisplaysTipsBody1Text" Margin="0,12,0,12" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                <TextBlock x:Name="DisplaysTipsBody2Text" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="BehaviorTab">
+                <ScrollViewer Margin="14" VerticalScrollBarVisibility="Auto">
+                    <Border Style="{StaticResource CardBorderStyle}">
+                        <StackPanel>
+                            <TextBlock x:Name="BehaviorTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                            <TextBlock x:Name="BehaviorBodyText" Margin="0,12,0,18" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+
+                            <CheckBox x:Name="RestoreImmediatelyCheckBox" FontSize="15" FontWeight="SemiBold" Foreground="#283443" Checked="MarkPendingChanges" Unchecked="MarkPendingChanges"/>
+                            <TextBlock x:Name="RestoreHelpText" Margin="24,8,0,20" TextWrapping="Wrap" FontSize="14" Foreground="#586476"/>
+
+                            <CheckBox x:Name="AllowMouseOnTouchscreenCheckBox" FontSize="15" FontWeight="SemiBold" Foreground="#283443" Checked="MarkPendingChanges" Unchecked="MarkPendingChanges"/>
+                            <TextBlock x:Name="AllowMouseOnTouchscreenHelpText" Margin="24,8,0,20" TextWrapping="Wrap" FontSize="14" Foreground="#586476"/>
+
+                            <CheckBox x:Name="StartWithWindowsCheckBox" FontSize="15" FontWeight="SemiBold" Foreground="#283443" Checked="MarkPendingChanges" Unchecked="MarkPendingChanges"/>
+                            <TextBlock x:Name="StartWithWindowsHelpText" Margin="24,8,0,0" TextWrapping="Wrap" FontSize="14" Foreground="#586476"/>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="DiagnosticsTab">
+                <Grid Margin="14">
+                    <Border Style="{StaticResource CardBorderStyle}">
+                        <StackPanel>
+                            <TextBlock x:Name="DiagnosticsTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                            <TextBlock x:Name="DiagnosticsBodyText" Margin="0,12,0,18" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="EnableLogButton" Style="{StaticResource PrimaryButtonStyle}" Click="EnableLogButton_Click"/>
+                                <Button x:Name="DisableLogButton" Style="{StaticResource ActionButtonStyle}" Click="DisableLogButton_Click"/>
+                                <Button x:Name="OpenLogButton" Style="{StaticResource ActionButtonStyle}" Click="OpenLogButton_Click"/>
+                            </StackPanel>
+                            <TextBlock x:Name="LogStatusText" Margin="0,18,0,0" FontSize="14" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="2" Background="White" Padding="18">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="StartButton" Style="{StaticResource SuccessButtonStyle}" Click="StartButton_Click"/>
+                    <Button x:Name="StopButton" Style="{StaticResource ActionButtonStyle}" Click="StopButton_Click"/>
+                    <Button x:Name="TrayButton" Style="{StaticResource ActionButtonStyle}" Click="TrayButton_Click"/>
+                    <Button x:Name="ConfigButton" Style="{StaticResource ActionButtonStyle}" Click="ConfigButton_Click"/>
+                    <Button x:Name="ApplyButton" Style="{StaticResource PrimaryButtonStyle}" Click="ApplyButton_Click"/>
+                </StackPanel>
+
+                <TextBlock x:Name="SaveStatusText" Grid.Row="1" Margin="2,12,0,0" FontSize="13"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
