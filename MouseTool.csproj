@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MouseTool</AssemblyName>
+    <RootNamespace>MouseTool</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Resources\Lang\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>lang\%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+</Project>

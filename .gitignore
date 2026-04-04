@@ -1,0 +1,38 @@
+# Build outputs
+bin/
+obj/
+release/
+
+# Local .NET and NuGet caches
+.dotnet-home/
+.nuget/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Generated runtime data
+mousekeeper.config.json
+mousekeeper.log
+
+# Installer leftovers
+InstallerOutput/
