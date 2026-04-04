@@ -337,8 +337,7 @@ Resources:
 
 Behavior and workflow inspiration:
 
-- [Touch Mouse Tools FAQ](https://touchmousetools.com/faqs/)
-- [Touch Mouse Tools User Manual](https://touchmousetools.com/user-manual/)
+- [Touch Mouse Tools](https://touchmousetools.com/)
 
 Installer packaging references:
 

@@ -13,6 +13,7 @@ release/
 *.suo
 *.userosscache
 *.sln.docstates
+.vscode/
 
 # Rider / JetBrains
 .idea/
