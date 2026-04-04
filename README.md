@@ -1,5 +1,7 @@
 # MouseTool
 
+[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-yellow.svg)](https://www.buymeacoffee.com/mvidaldev)
+
 `MouseTool` is a Windows tray utility built with `.NET 10`, `WPF`, and a small amount of native Win32 interop.
 
 It is designed for dual-screen setups where:
