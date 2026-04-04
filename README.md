@@ -4,6 +4,19 @@
 
 `MouseTool` is a Windows tray utility built with `.NET 10`, `WPF`, and a small amount of native Win32 interop.
 
+## Download
+
+The latest public builds are published on GitHub Releases:
+
+- [Download the latest release](https://github.com/mvidaldev/MouseTool/releases/latest)
+- [Download the Windows installer (.exe)](https://github.com/mvidaldev/MouseTool/releases/latest/download/MouseTool-Setup.exe)
+- [Download the portable build (.zip)](https://github.com/mvidaldev/MouseTool/releases/latest/download/MouseTool-win-x64.zip)
+
+Recommended:
+
+- use the installer if you want Start Menu shortcuts, uninstall support, and the easiest setup
+- use the zip package if you prefer a portable/manual installation
+
 It is designed for dual-screen setups where:
 
 - the physical mouse should stay anchored to the main monitor
@@ -262,11 +275,17 @@ This generates:
 - zip package
 - setup installer executable
 
-Current release outputs:
+Local release outputs:
 
 - [MouseTool.exe](Z:\projetos\Codex\MouseTool\release\MouseTool\MouseTool.exe)
 - [MouseTool-win-x64.zip](Z:\projetos\Codex\MouseTool\release\MouseTool-win-x64.zip)
 - [MouseTool-Setup.exe](Z:\projetos\Codex\MouseTool\release\MouseTool-Setup.exe)
+
+Public downloads:
+
+- [GitHub Releases page](https://github.com/mvidaldev/MouseTool/releases)
+- [Latest installer](https://github.com/mvidaldev/MouseTool/releases/latest/download/MouseTool-Setup.exe)
+- [Latest portable zip](https://github.com/mvidaldev/MouseTool/releases/latest/download/MouseTool-win-x64.zip)
 
 ## Installer
 
