@@ -4,11 +4,16 @@ namespace MouseTool;
 
 internal sealed class MouseKeeperEngine : IDisposable
 {
+    private static readonly TimeSpan AnchorSaveInterval = TimeSpan.FromMilliseconds(750);
     private readonly Action<MouseKeeperConfig> _saveConfig;
     private NativeMethods.LowLevelMouseProc? _hookProc;
     private IntPtr _hookHandle;
     private MouseKeeperConfig _config;
     private Point _lastPrimaryMousePosition;
+    private MonitorInfo? _primaryMonitor;
+    private MonitorInfo? _touchMonitor;
+    private DateTime _lastAnchorSaveUtc = DateTime.MinValue;
+    private bool _anchorSavePending;
     private bool _restorePending;
     private DateTime _lastSecondaryActivityUtc = DateTime.MinValue;
     private int _diagnosticEventsRemaining = 120;
@@ -38,22 +43,22 @@ internal sealed class MouseKeeperEngine : IDisposable
     private void RefreshMonitorDefaults()
     {
         var screens = MonitorManager.GetAllMonitors();
-        var primary = screens.FirstOrDefault(s => s.IsPrimary) ?? screens.FirstOrDefault();
-        var secondary = screens.FirstOrDefault(s => !s.IsPrimary);
+        _primaryMonitor = screens.FirstOrDefault(s => s.IsPrimary) ?? screens.FirstOrDefault();
+        _touchMonitor = screens.FirstOrDefault(s => !s.IsPrimary);
 
-        if (primary is not null && string.IsNullOrWhiteSpace(_config.PrimaryMonitorDeviceName))
+        if (_primaryMonitor is not null && string.IsNullOrWhiteSpace(_config.PrimaryMonitorDeviceName))
         {
-            _config.PrimaryMonitorDeviceName = primary.DeviceName;
+            _config.PrimaryMonitorDeviceName = _primaryMonitor.DeviceName;
         }
 
-        if (secondary is not null && string.IsNullOrWhiteSpace(_config.TouchMonitorDeviceName))
+        if (_touchMonitor is not null && string.IsNullOrWhiteSpace(_config.TouchMonitorDeviceName))
         {
-            _config.TouchMonitorDeviceName = secondary.DeviceName;
+            _config.TouchMonitorDeviceName = _touchMonitor.DeviceName;
         }
 
-        if (_lastPrimaryMousePosition == Point.Empty && primary is not null)
+        if (_lastPrimaryMousePosition == Point.Empty && _primaryMonitor is not null)
         {
-            var center = new Point(primary.Bounds.Left + primary.Bounds.Width / 2, primary.Bounds.Top + primary.Bounds.Height / 2);
+            var center = new Point(_primaryMonitor.Bounds.Left + _primaryMonitor.Bounds.Width / 2, _primaryMonitor.Bounds.Top + _primaryMonitor.Bounds.Height / 2);
             _lastPrimaryMousePosition = center;
             _config.LastPrimaryMousePosition = SerializablePoint.FromPoint(center);
         }
@@ -180,7 +185,7 @@ internal sealed class MouseKeeperEngine : IDisposable
         {
             _lastPrimaryMousePosition = point;
             _config.LastPrimaryMousePosition = SerializablePoint.FromPoint(point);
-            _saveConfig(_config);
+            QueueAnchorSave();
         }
 
         return false;
@@ -198,7 +203,7 @@ internal sealed class MouseKeeperEngine : IDisposable
         var bounded = ClampPointToBounds(_lastPrimaryMousePosition, primary.Bounds);
         _lastPrimaryMousePosition = bounded;
         _config.LastPrimaryMousePosition = SerializablePoint.FromPoint(bounded);
-        _saveConfig(_config);
+        SaveAnchorNow();
         MouseKeeperLog.Write($"Cursor restored to {bounded.X},{bounded.Y} on {primary.DeviceName}.");
         NativeMethods.SetCursorPos(bounded.X, bounded.Y);
     }
@@ -222,18 +227,54 @@ internal sealed class MouseKeeperEngine : IDisposable
 
     private MonitorInfo? GetConfiguredPrimaryMonitor()
     {
-        return MonitorManager.FindByDeviceName(_config.PrimaryMonitorDeviceName)
+        if (_primaryMonitor is not null &&
+            string.Equals(_primaryMonitor.DeviceName, _config.PrimaryMonitorDeviceName, StringComparison.OrdinalIgnoreCase))
+        {
+            return _primaryMonitor;
+        }
+
+        _primaryMonitor = MonitorManager.FindByDeviceName(_config.PrimaryMonitorDeviceName)
             ?? MonitorManager.GetPrimaryMonitor();
+
+        return _primaryMonitor;
     }
 
     private MonitorInfo? GetConfiguredTouchMonitor()
     {
-        if (!string.IsNullOrWhiteSpace(_config.TouchMonitorDeviceName))
+        if (_touchMonitor is not null &&
+            string.Equals(_touchMonitor.DeviceName, _config.TouchMonitorDeviceName, StringComparison.OrdinalIgnoreCase))
         {
-            return MonitorManager.FindByDeviceName(_config.TouchMonitorDeviceName);
+            return _touchMonitor;
         }
 
-        return MonitorManager.GetAllMonitors().FirstOrDefault(s => !s.IsPrimary);
+        if (!string.IsNullOrWhiteSpace(_config.TouchMonitorDeviceName))
+        {
+            _touchMonitor = MonitorManager.FindByDeviceName(_config.TouchMonitorDeviceName);
+            return _touchMonitor;
+        }
+
+        _touchMonitor = MonitorManager.GetAllMonitors().FirstOrDefault(s => !s.IsPrimary);
+        return _touchMonitor;
+    }
+
+    private void QueueAnchorSave()
+    {
+        _anchorSavePending = true;
+
+        var now = DateTime.UtcNow;
+        if (now - _lastAnchorSaveUtc < AnchorSaveInterval)
+        {
+            return;
+        }
+
+        SaveAnchorNow();
+    }
+
+    private void SaveAnchorNow()
+    {
+        _saveConfig(_config);
+        _lastAnchorSaveUtc = DateTime.UtcNow;
+        _anchorSavePending = false;
     }
 
     private static Point ClampPointToBounds(Point point, Rectangle bounds)
@@ -245,6 +286,11 @@ internal sealed class MouseKeeperEngine : IDisposable
 
     public void Dispose()
     {
+        if (_anchorSavePending)
+        {
+            SaveAnchorNow();
+        }
+
         if (_hookHandle != IntPtr.Zero)
         {
             NativeMethods.UnhookWindowsHookEx(_hookHandle);

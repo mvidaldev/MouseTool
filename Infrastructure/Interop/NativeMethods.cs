@@ -14,6 +14,9 @@ internal static class NativeMethods
     public const int WmLbuttonup = 0x0202;
     public const int WmRbuttonup = 0x0205;
     public const int WmNull = 0x0000;
+    public const int WmDisplaychange = 0x007E;
+    public const int WmContextmenu = 0x007B;
+    public const int WmPowerbroadcast = 0x0218;
     public const uint MonitorInfofPrimary = 0x00000001;
     public const uint NimAdd = 0x00000000;
     public const uint NimModify = 0x00000001;
@@ -25,6 +28,11 @@ internal static class NativeMethods
     public const uint NifInfo = 0x00000010;
     public const uint NiifInfo = 0x00000001;
     public const uint NotifyIconVersion4 = 4;
+    public const int NinSelect = 0x0400;
+    public const int NinKeyselect = 0x0401;
+    public const int PbtApmresumeautomatic = 0x0012;
+    public const int PbtApmresumesuspend = 0x0007;
+    public const int PbtApmpowerstatuschange = 0x000A;
 
     public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
     public delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RectStruct lprcMonitor, IntPtr dwData);
@@ -170,6 +178,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr PostMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern uint RegisterWindowMessage(string lpString);
 
     public static MonitorInfoEx GetMonitorInfo(IntPtr monitorHandle)
     {
