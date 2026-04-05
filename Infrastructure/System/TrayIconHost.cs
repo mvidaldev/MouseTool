@@ -3,39 +3,49 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace MouseTool;
 
 internal sealed class TrayIconHost : IDisposable
 {
     private const int CallbackMessageId = 0x8001;
-    private readonly HwndSource _source;
+    private const int WsPopup = unchecked((int)0x80000000);
+    private const int WsExToolwindow = 0x00000080;
+    private const int WsExNoactivate = 0x08000000;
+    private static readonly uint TaskbarCreatedMessageId = NativeMethods.RegisterWindowMessage("TaskbarCreated");
     private readonly ContextMenu _menu;
     private readonly MenuItem _openItem;
     private readonly MenuItem _startItem;
     private readonly MenuItem _stopItem;
     private readonly MenuItem _helpItem;
     private readonly MenuItem _exitItem;
+    private readonly Icon _icon;
+    private readonly Action _onOpen;
+    private readonly Action _onStart;
+    private readonly Action _onStop;
+    private readonly Action _onHelp;
+    private readonly Action _onExit;
     private readonly uint _iconId = 1;
+    private HwndSource? _source;
+    private string _tooltip = string.Empty;
     private bool _disposed;
 
     public TrayIconHost(Icon icon, Action onOpen, Action onStart, Action onStop, Action onHelp, Action onExit)
     {
-        _source = new HwndSource(new HwndSourceParameters("MouseToolTrayHost")
-        {
-            Width = 0,
-            Height = 0,
-            WindowStyle = 0x800000,
-            ParentWindow = new IntPtr(-3)
-        });
-        _source.AddHook(WndProc);
+        _icon = (Icon)icon.Clone();
+        _onOpen = onOpen;
+        _onStart = onStart;
+        _onStop = onStop;
+        _onHelp = onHelp;
+        _onExit = onExit;
 
         _menu = new ContextMenu();
-        _openItem = CreateMenuItem(onOpen);
-        _startItem = CreateMenuItem(onStart);
-        _stopItem = CreateMenuItem(onStop);
-        _helpItem = CreateMenuItem(onHelp);
-        _exitItem = CreateMenuItem(onExit);
+        _openItem = CreateMenuItem(_onOpen);
+        _startItem = CreateMenuItem(_onStart);
+        _stopItem = CreateMenuItem(_onStop);
+        _helpItem = CreateMenuItem(_onHelp);
+        _exitItem = CreateMenuItem(_onExit);
 
         _menu.Items.Add(_openItem);
         _menu.Items.Add(_startItem);
@@ -44,17 +54,22 @@ internal sealed class TrayIconHost : IDisposable
         _menu.Items.Add(_helpItem);
         _menu.Items.Add(new Separator());
         _menu.Items.Add(_exitItem);
-        _menu.Closed += (_, _) => NativeMethods.PostMessage(_source.Handle, NativeMethods.WmNull, IntPtr.Zero, IntPtr.Zero);
+        _menu.Closed += (_, _) =>
+        {
+            var handle = _source?.Handle ?? IntPtr.Zero;
+            if (handle != IntPtr.Zero)
+            {
+                NativeMethods.PostMessage(handle, NativeMethods.WmNull, IntPtr.Zero, IntPtr.Zero);
+            }
+        };
 
-        var data = CreateNotifyIconData(NativeMethods.NimAdd, icon, string.Empty, string.Empty);
-        NativeMethods.ShellNotifyIcon(NativeMethods.NimAdd, ref data);
-        var versionData = CreateNotifyIconData(NativeMethods.NimSetversion, icon, string.Empty, string.Empty);
-        versionData.Anonymous.uVersion = NativeMethods.NotifyIconVersion4;
-        NativeMethods.ShellNotifyIcon(NativeMethods.NimSetversion, ref versionData);
+        CreateMessageWindow();
+        AddNotifyIcon();
     }
 
     public void Update(string tooltip, string openText, string startText, string stopText, string helpText, string exitText, bool canStart, bool canStop)
     {
+        _tooltip = tooltip;
         _openItem.Header = openText;
         _startItem.Header = startText;
         _stopItem.Header = stopText;
@@ -75,6 +90,28 @@ internal sealed class TrayIconHost : IDisposable
         NativeMethods.ShellNotifyIcon(NativeMethods.NimModify, ref data);
     }
 
+    public void RestoreIcon()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        RecreateHost();
+    }
+
+    public void RestoreIconWithRetries()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        RestoreIcon();
+        ScheduleRestoreAttempt(TimeSpan.FromMilliseconds(500));
+        ScheduleRestoreAttempt(TimeSpan.FromSeconds(2));
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -83,10 +120,9 @@ internal sealed class TrayIconHost : IDisposable
         }
 
         _disposed = true;
-        var data = CreateNotifyIconData(NativeMethods.NimDelete, null, string.Empty, string.Empty);
-        NativeMethods.ShellNotifyIcon(NativeMethods.NimDelete, ref data);
-        _source.RemoveHook(WndProc);
-        _source.Dispose();
+        RemoveNotifyIcon();
+        DestroyMessageWindow();
+        _icon.Dispose();
     }
 
     private MenuItem CreateMenuItem(Action onClick)
@@ -98,15 +134,41 @@ internal sealed class TrayIconHost : IDisposable
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if ((uint)msg == TaskbarCreatedMessageId)
+        {
+            RestoreIconWithRetries();
+            handled = true;
+            return IntPtr.Zero;
+        }
+
+        if (msg == NativeMethods.WmDisplaychange)
+        {
+            RestoreIconWithRetries();
+        }
+
+        if (msg == NativeMethods.WmPowerbroadcast)
+        {
+            var powerEvent = wParam.ToInt32();
+            if (powerEvent is NativeMethods.PbtApmresumeautomatic or NativeMethods.PbtApmresumesuspend or NativeMethods.PbtApmpowerstatuschange)
+            {
+                RestoreIconWithRetries();
+            }
+        }
+
         if (msg == CallbackMessageId)
         {
-            switch ((int)lParam)
+            var notification = lParam.ToInt32() & 0xFFFF;
+
+            switch (notification)
             {
+                case NativeMethods.NinSelect:
+                case NativeMethods.NinKeyselect:
                 case NativeMethods.WmLbuttonup:
                 case NativeMethods.WmLbuttondblclk:
                     _openItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                     handled = true;
                     break;
+                case NativeMethods.WmContextmenu:
                 case NativeMethods.WmRbuttonup:
                     OpenMenu();
                     handled = true;
@@ -117,8 +179,91 @@ internal sealed class TrayIconHost : IDisposable
         return IntPtr.Zero;
     }
 
+    private void RecreateHost()
+    {
+        RemoveNotifyIcon();
+        DestroyMessageWindow();
+        CreateMessageWindow();
+        AddNotifyIcon();
+    }
+
+    private void CreateMessageWindow()
+    {
+        var parameters = new HwndSourceParameters("MouseToolTrayHost")
+        {
+            Width = 0,
+            Height = 0,
+            WindowStyle = WsPopup,
+            ExtendedWindowStyle = WsExToolwindow | WsExNoactivate
+        };
+
+        _source = new HwndSource(parameters);
+        _source.AddHook(WndProc);
+    }
+
+    private void DestroyMessageWindow()
+    {
+        if (_source is null)
+        {
+            return;
+        }
+
+        _source.RemoveHook(WndProc);
+        _source.Dispose();
+        _source = null;
+    }
+
+    private void AddNotifyIcon()
+    {
+        var addData = CreateNotifyIconData(NativeMethods.NimAdd, _icon, _tooltip, string.Empty);
+        NativeMethods.ShellNotifyIcon(NativeMethods.NimAdd, ref addData);
+
+        var versionData = CreateNotifyIconData(NativeMethods.NimSetversion, _icon, _tooltip, string.Empty);
+        versionData.Anonymous.uVersion = NativeMethods.NotifyIconVersion4;
+        NativeMethods.ShellNotifyIcon(NativeMethods.NimSetversion, ref versionData);
+    }
+
+    private void RemoveNotifyIcon()
+    {
+        if (_source is null)
+        {
+            return;
+        }
+
+        var deleteData = CreateNotifyIconData(NativeMethods.NimDelete, null, string.Empty, string.Empty);
+        NativeMethods.ShellNotifyIcon(NativeMethods.NimDelete, ref deleteData);
+    }
+
+    private void ScheduleRestoreAttempt(TimeSpan delay)
+    {
+        var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        var timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
+        {
+            Interval = delay
+        };
+
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+
+            if (_disposed)
+            {
+                return;
+            }
+
+            RecreateHost();
+        };
+
+        timer.Start();
+    }
+
     private void OpenMenu()
     {
+        if (_source is null)
+        {
+            return;
+        }
+
         NativeMethods.GetCursorPos(out var cursorPoint);
         NativeMethods.SetForegroundWindow(_source.Handle);
         _menu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
@@ -129,10 +274,11 @@ internal sealed class TrayIconHost : IDisposable
 
     private NativeMethods.NotifyIconData CreateNotifyIconData(uint message, Icon? icon, string tooltip, string balloonText)
     {
+        var handle = _source?.Handle ?? IntPtr.Zero;
         return new NativeMethods.NotifyIconData
         {
             cbSize = (uint)Marshal.SizeOf<NativeMethods.NotifyIconData>(),
-            hWnd = _source.Handle,
+            hWnd = handle,
             uID = _iconId,
             uFlags = NativeMethods.NifMessage | NativeMethods.NifTip | NativeMethods.NifInfo | (icon is not null ? NativeMethods.NifIcon : 0),
             uCallbackMessage = CallbackMessageId,

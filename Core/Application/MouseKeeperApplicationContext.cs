@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using Microsoft.Win32;
+using System.Windows.Threading;
 
 namespace MouseTool;
 
@@ -32,6 +33,9 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
         EnsureMonitorDefaults();
 
         _trayIcon = new TrayIconHost(BrandAssets.AppIcon, ShowMainForm, () => StartProtection(), () => StopProtection(), OpenHelpFile, ExitApplication);
+        SystemEvents.DisplaySettingsChanged += OnSystemDisplaySettingsChanged;
+        SystemEvents.PowerModeChanged += OnSystemPowerModeChanged;
+        SystemEvents.SessionSwitch += OnSystemSessionSwitch;
 
         if (_config.Enabled)
         {
@@ -401,8 +405,58 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
         _mainWindow?.RefreshView();
     }
 
+    private void OnSystemDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        HandleDisplayContextChanged("Display settings changed.");
+    }
+
+    private void OnSystemPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode is PowerModes.Resume or PowerModes.StatusChange)
+        {
+            HandleDisplayContextChanged($"Power mode changed: {e.Mode}.");
+        }
+    }
+
+    private void OnSystemSessionSwitch(object? sender, SessionSwitchEventArgs e)
+    {
+        if (e.Reason is SessionSwitchReason.SessionUnlock or SessionSwitchReason.ConsoleConnect or SessionSwitchReason.RemoteConnect)
+        {
+            HandleDisplayContextChanged($"Session switch detected: {e.Reason}.");
+        }
+    }
+
+    private void HandleDisplayContextChanged(string reason)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null)
+        {
+            return;
+        }
+
+        dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            try
+            {
+                MouseKeeperLog.Write(reason);
+                EnsureMonitorDefaults();
+                _engine?.Reload(_config);
+                _trayIcon.RestoreIconWithRetries();
+                ApplyMenuTexts();
+                _mainWindow?.RefreshView();
+            }
+            catch (Exception ex)
+            {
+                MouseKeeperLog.Write($"Display context refresh failed: {ex}");
+            }
+        }));
+    }
+
     public void Dispose()
     {
+        SystemEvents.DisplaySettingsChanged -= OnSystemDisplaySettingsChanged;
+        SystemEvents.PowerModeChanged -= OnSystemPowerModeChanged;
+        SystemEvents.SessionSwitch -= OnSystemSessionSwitch;
         _trayIcon.Dispose();
         _engine?.Dispose();
         _engine = null;
