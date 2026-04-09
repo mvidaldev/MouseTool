@@ -66,6 +66,7 @@ MouseTool currently includes:
 - release packaging
 - setup installer
 - uninstaller
+- self-update infrastructure based on manifest check, silent uninstall, and silent reinstall
 
 ## Architecture
 
@@ -200,7 +201,9 @@ The app opens the help file that matches the currently selected language when po
 
 ## Configuration
 
-The app writes `mousekeeper.config.json` next to the executable on first run.
+The app writes `mousekeeper.config.json` into the per-user data folder:
+
+- `%LOCALAPPDATA%\MouseTool\mousekeeper.config.json`
 
 Important fields include:
 
@@ -226,11 +229,36 @@ This is controlled by the `Start with Windows` option in the app.
 
 Logging is manual and disabled by default.
 
-The diagnostic log file is written next to the executable as:
+The diagnostic log file is written into the per-user data folder as:
 
-- `mousekeeper.log`
+- `%LOCALAPPDATA%\MouseTool\mousekeeper.log`
 
 Use logging only when you need to investigate behavior during testing.
+
+## Auto-update
+
+The installed build can now check a published JSON manifest and apply an update by:
+
+- downloading the newest installer
+- validating the installer SHA-256 hash
+- opening the published changelog for the target version before installation
+- starting a separate updater helper
+- closing MouseTool
+- silently uninstalling the current installed version
+- silently reinstalling the new version into the same path
+- relaunching MouseTool
+
+The default manifest URL used by the app is:
+
+- `https://github.com/mvidaldev/MouseTool/releases/latest/download/update.json`
+
+The updater helper is shipped as:
+
+- `MouseTool.Updater.exe`
+
+The release changelog is published as:
+
+- `MouseTool-CHANGELOG.md`
 
 ## License
 
@@ -274,12 +302,16 @@ This generates:
 - release folder
 - zip package
 - setup installer executable
+- update manifest JSON
 
 Local release outputs:
 
 - [MouseTool.exe](Z:\projetos\Codex\MouseTool\release\MouseTool\MouseTool.exe)
+- [MouseTool.Updater.exe](Z:\projetos\Codex\MouseTool\release\MouseTool\MouseTool.Updater.exe)
 - [MouseTool-win-x64.zip](Z:\projetos\Codex\MouseTool\release\MouseTool-win-x64.zip)
 - [MouseTool-Setup.exe](Z:\projetos\Codex\MouseTool\release\MouseTool-Setup.exe)
+- [MouseTool-CHANGELOG.md](Z:\projetos\Codex\MouseTool\release\MouseTool-CHANGELOG.md)
+- [update.json](Z:\projetos\Codex\MouseTool\release\update.json)
 
 Public downloads:
 
@@ -295,6 +327,7 @@ It currently:
 
 - installs MouseTool into `%LocalAppData%\Programs\MouseTool`
 - creates application shortcuts
+- installs the updater helper next to the main executable
 - launches the app after installation
 - registers uninstall information in Windows
 - includes uninstall support through Windows settings and the Start Menu

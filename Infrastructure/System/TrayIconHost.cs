@@ -18,12 +18,14 @@ internal sealed class TrayIconHost : IDisposable
     private readonly MenuItem _openItem;
     private readonly MenuItem _startItem;
     private readonly MenuItem _stopItem;
+    private readonly MenuItem _updateItem;
     private readonly MenuItem _helpItem;
     private readonly MenuItem _exitItem;
     private readonly Icon _icon;
     private readonly Action _onOpen;
     private readonly Action _onStart;
     private readonly Action _onStop;
+    private readonly Action _onUpdate;
     private readonly Action _onHelp;
     private readonly Action _onExit;
     private readonly uint _iconId = 1;
@@ -31,12 +33,13 @@ internal sealed class TrayIconHost : IDisposable
     private string _tooltip = string.Empty;
     private bool _disposed;
 
-    public TrayIconHost(Icon icon, Action onOpen, Action onStart, Action onStop, Action onHelp, Action onExit)
+    public TrayIconHost(Icon icon, Action onOpen, Action onStart, Action onStop, Action onUpdate, Action onHelp, Action onExit)
     {
         _icon = (Icon)icon.Clone();
         _onOpen = onOpen;
         _onStart = onStart;
         _onStop = onStop;
+        _onUpdate = onUpdate;
         _onHelp = onHelp;
         _onExit = onExit;
 
@@ -44,12 +47,14 @@ internal sealed class TrayIconHost : IDisposable
         _openItem = CreateMenuItem(_onOpen);
         _startItem = CreateMenuItem(_onStart);
         _stopItem = CreateMenuItem(_onStop);
+        _updateItem = CreateMenuItem(_onUpdate);
         _helpItem = CreateMenuItem(_onHelp);
         _exitItem = CreateMenuItem(_onExit);
 
         _menu.Items.Add(_openItem);
         _menu.Items.Add(_startItem);
         _menu.Items.Add(_stopItem);
+        _menu.Items.Add(_updateItem);
         _menu.Items.Add(new Separator());
         _menu.Items.Add(_helpItem);
         _menu.Items.Add(new Separator());
@@ -67,16 +72,28 @@ internal sealed class TrayIconHost : IDisposable
         AddNotifyIcon();
     }
 
-    public void Update(string tooltip, string openText, string startText, string stopText, string helpText, string exitText, bool canStart, bool canStop)
+    public void Update(
+        string tooltip,
+        string openText,
+        string startText,
+        string stopText,
+        string updateText,
+        string helpText,
+        string exitText,
+        bool canStart,
+        bool canStop,
+        bool canUpdate)
     {
         _tooltip = tooltip;
         _openItem.Header = openText;
         _startItem.Header = startText;
         _stopItem.Header = stopText;
+        _updateItem.Header = updateText;
         _helpItem.Header = helpText;
         _exitItem.Header = exitText;
         _startItem.IsEnabled = canStart;
         _stopItem.IsEnabled = canStop;
+        _updateItem.IsEnabled = canUpdate;
 
         var data = CreateNotifyIconData(NativeMethods.NimModify, null, tooltip, string.Empty);
         NativeMethods.ShellNotifyIcon(NativeMethods.NimModify, ref data);

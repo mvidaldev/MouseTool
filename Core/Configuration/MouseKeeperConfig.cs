@@ -5,10 +5,12 @@ namespace MouseTool;
 
 internal sealed class MouseKeeperConfig
 {
+    public bool CheckForUpdatesOnStartup { get; set; } = true;
     public bool Enabled { get; set; } = true;
     public bool LoggingEnabled { get; set; }
     public bool StartWithWindows { get; set; }
     public string SelectedLanguage { get; set; } = string.Empty;
+    public string UpdateManifestUrl { get; set; } = string.Empty;
     public bool AllowMouseOnTouchscreen { get; set; }
     public string PrimaryMonitorDeviceName { get; set; } = string.Empty;
     public string TouchMonitorDeviceName { get; set; } = string.Empty;
@@ -34,8 +36,10 @@ internal sealed class MouseKeeperConfig
 
         var config = new MouseKeeperConfig
         {
+            CheckForUpdatesOnStartup = true,
             LoggingEnabled = false,
-            SelectedLanguage = string.Empty
+            SelectedLanguage = string.Empty,
+            UpdateManifestUrl = string.Empty
         };
         File.WriteAllText(path, JsonSerializer.Serialize(config, JsonOptions));
         return config;

@@ -73,7 +73,9 @@ jobs:
           $title = 'MouseTool v${{ steps.version.outputs.release_version }}'
           $files = @(
             'release/MouseTool-Setup.exe',
-            'release/MouseTool-win-x64.zip'
+            'release/MouseTool-win-x64.zip',
+            'release/MouseTool-CHANGELOG.md',
+            'release/update.json'
           )
 
           & gh release view $tag --repo '${{ github.repository }}' *> $null
