@@ -14,10 +14,20 @@
     <InformationalVersion>2.0.4</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <EmbeddedResource Remove="Tests\**\*" />
+    <None Remove="Tests\**\*" />
+    <Compile Remove="Updater\**\*.cs" />
+    <None Remove="Updater\**\*" />
     <Content Include="Resources\Lang\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>lang\%(Filename)%(Extension)</Link>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>MouseTool.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="Frontend\App.xaml" />

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -14,25 +15,43 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
     private readonly string _logPath;
     private readonly string _helpDirectory;
     private readonly TrayIconHost _trayIcon;
+    private readonly SemaphoreSlim _updateLock = new(1, 1);
+    private readonly UpdateService _updateService;
     private MouseKeeperConfig _config;
     private MouseKeeperEngine? _engine;
     private MainWindow? _mainWindow;
+    private UpdateManifest? _availableUpdate;
+    private string? _downloadedInstallerPath;
+    private string? _availableVersionText;
+    private string? _updateErrorMessage;
+    private UpdateWorkflowState _updateWorkflowState;
     private bool _exitRequested;
 
     public MouseKeeperApplicationContext()
     {
-        _configPath = Path.Combine(AppContext.BaseDirectory, "mousekeeper.config.json");
-        _logPath = Path.Combine(AppContext.BaseDirectory, "mousekeeper.log");
-        _helpDirectory = Path.Combine(AppContext.BaseDirectory, "help");
-        AppLocalizer.Initialize(Path.Combine(AppContext.BaseDirectory, "lang"));
+        _configPath = AppPaths.ConfigPath;
+        _logPath = AppPaths.LogPath;
+        _helpDirectory = AppPaths.HelpDirectory;
+        AppLocalizer.Initialize(AppPaths.LanguageDirectory);
 
         _config = MouseKeeperConfig.LoadOrCreate(_configPath);
+        _updateService = new UpdateService(_config.UpdateManifestUrl);
+        _updateWorkflowState = DetectInitialUpdateState();
+
         MouseKeeperLog.Initialize(_logPath);
         MouseKeeperLog.SetEnabled(_config.LoggingEnabled);
         HelpFileWriter.EnsureHelpFiles(_helpDirectory);
         EnsureMonitorDefaults();
 
-        _trayIcon = new TrayIconHost(BrandAssets.AppIcon, ShowMainForm, () => StartProtection(), () => StopProtection(), OpenHelpFile, ExitApplication);
+        _trayIcon = new TrayIconHost(
+            BrandAssets.AppIcon,
+            ShowMainForm,
+            () => StartProtection(),
+            () => StopProtection(),
+            ExecuteTrayUpdateAction,
+            OpenHelpFile,
+            ExitApplication);
+
         SystemEvents.DisplaySettingsChanged += OnSystemDisplaySettingsChanged;
         SystemEvents.PowerModeChanged += OnSystemPowerModeChanged;
         SystemEvents.SessionSwitch += OnSystemSessionSwitch;
@@ -44,6 +63,11 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
 
         ShowMainForm();
         ApplyLanguageToThread();
+
+        if (_config.CheckForUpdatesOnStartup && IsSelfUpdateSupported)
+        {
+            _ = CheckForUpdatesAsync(userInitiated: false);
+        }
     }
 
     public bool IsRunning => _engine is not null;
@@ -53,6 +77,22 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
     public MouseKeeperConfig Config => _config;
 
     public string CurrentLanguageCode => AppLocalizer.ResolveLanguageCode(_config.SelectedLanguage);
+
+    public string CurrentVersionText => FormatVersion(_updateService.CurrentVersion);
+
+    public bool IsSelfUpdateSupported => File.Exists(AppPaths.InstalledUpdaterPath) && !string.IsNullOrWhiteSpace(AppPaths.FindUninstallerPath());
+
+    public bool IsUpdateBusy => _updateWorkflowState is UpdateWorkflowState.Checking or UpdateWorkflowState.Downloading or UpdateWorkflowState.Applying;
+
+    public bool CanCheckForUpdates => IsSelfUpdateSupported && !IsUpdateBusy;
+
+    public bool CanInstallUpdate => IsSelfUpdateSupported && !IsUpdateBusy && _availableUpdate is not null;
+
+    public bool CanOpenUpdateChangelog =>
+        _availableUpdate is not null
+        && (!string.IsNullOrWhiteSpace(_availableUpdate.ChangelogUrl) || !string.IsNullOrWhiteSpace(_availableUpdate.ReleaseNotesUrl));
+
+    public string UpdateButtonText => CanInstallUpdate ? T("UpdatesButtonInstall") : T("UpdatesButtonCheck");
 
     public IReadOnlyList<LanguageOption> GetLanguageOptions() => AppLocalizer.GetLanguageOptions(_config.SelectedLanguage);
 
@@ -66,6 +106,32 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
     public string T(string key) => AppLocalizer.Get(_config.SelectedLanguage, key);
 
     public string StatusText => IsRunning ? T("StatusRunning") : T("StatusPaused");
+
+    public string UpdateStatusTitle => _updateWorkflowState switch
+    {
+        UpdateWorkflowState.Unsupported => T("UpdatesStatusUnsupportedTitle"),
+        UpdateWorkflowState.Checking => T("UpdatesStatusCheckingTitle"),
+        UpdateWorkflowState.UpToDate => T("UpdatesStatusCurrentTitle"),
+        UpdateWorkflowState.Available => T("UpdatesStatusAvailableTitle"),
+        UpdateWorkflowState.Downloading => T("UpdatesStatusDownloadingTitle"),
+        UpdateWorkflowState.Applying => T("UpdatesStatusApplyingTitle"),
+        UpdateWorkflowState.Error => T("UpdatesStatusErrorTitle"),
+        _ => T("UpdatesStatusCurrentTitle")
+    };
+
+    public string UpdateStatusBody => _updateWorkflowState switch
+    {
+        UpdateWorkflowState.Unsupported => T("UpdatesStatusUnsupportedBody"),
+        UpdateWorkflowState.Checking => string.Format(T("UpdatesStatusCheckingBody"), CurrentVersionText),
+        UpdateWorkflowState.UpToDate => string.Format(T("UpdatesStatusCurrentBody"), _availableVersionText ?? CurrentVersionText),
+        UpdateWorkflowState.Available => string.Format(T("UpdatesStatusAvailableBody"), _availableVersionText ?? CurrentVersionText),
+        UpdateWorkflowState.Downloading => string.Format(T("UpdatesStatusDownloadingBody"), _availableVersionText ?? CurrentVersionText),
+        UpdateWorkflowState.Applying => string.Format(T("UpdatesStatusApplyingBody"), _availableVersionText ?? CurrentVersionText),
+        UpdateWorkflowState.Error => string.Format(T("UpdatesStatusErrorBody"), _updateErrorMessage ?? T("UpdatesGenericError")),
+        _ => string.Format(T("UpdatesStatusCurrentBody"), CurrentVersionText)
+    };
+
+    public string UpdateCurrentVersionText => string.Format(T("UpdatesCurrentVersionValue"), CurrentVersionText);
 
     public void StartProtection(bool showBalloon = true, bool persistEnabled = true)
     {
@@ -139,15 +205,14 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
 
     public void OpenConfigFolder()
     {
-        var folder = Path.GetDirectoryName(_configPath) ?? AppContext.BaseDirectory;
-        System.Diagnostics.Process.Start("explorer.exe", folder);
+        Process.Start("explorer.exe", AppPaths.DataDirectory);
     }
 
     public void OpenHelpFile()
     {
         HelpFileWriter.EnsureHelpFiles(_helpDirectory);
         var helpPath = HelpFileWriter.GetHelpFilePath(_helpDirectory, AppLocalizer.ResolveLanguageCode(_config.SelectedLanguage));
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        Process.Start(new ProcessStartInfo
         {
             FileName = helpPath,
             UseShellExecute = true
@@ -156,7 +221,7 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
 
     public void OpenCoffeeLink()
     {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        Process.Start(new ProcessStartInfo
         {
             FileName = "https://buymeacoffee.com/mvidaldev",
             UseShellExecute = true
@@ -185,7 +250,7 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
     {
         if (File.Exists(_logPath))
         {
-            System.Diagnostics.Process.Start("notepad.exe", _logPath);
+            Process.Start("notepad.exe", _logPath);
         }
     }
 
@@ -225,22 +290,112 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
         return !string.IsNullOrWhiteSpace(value);
     }
 
-    private void ApplyStartupPreference()
+    public async Task CheckForUpdatesAsync(bool userInitiated)
     {
-        using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true);
-        if (key is null)
+        if (!IsSelfUpdateSupported)
         {
+            _updateWorkflowState = UpdateWorkflowState.Unsupported;
+            UpdateState();
             return;
         }
 
-        if (_config.StartWithWindows)
+        await _updateLock.WaitAsync();
+        try
         {
-            var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-            key.SetValue(StartupValueName, $"\"{exePath}\"");
+            _updateWorkflowState = UpdateWorkflowState.Checking;
+            _updateErrorMessage = null;
+            UpdateState();
+
+            var result = await _updateService.CheckForUpdatesAsync();
+            if (!result.IsSuccessful)
+            {
+                _availableUpdate = null;
+                _downloadedInstallerPath = null;
+                _availableVersionText = null;
+                _updateErrorMessage = result.ErrorMessage;
+                _updateWorkflowState = UpdateWorkflowState.Error;
+                MouseKeeperLog.Write($"Update check failed: {result.ErrorMessage}");
+                UpdateState();
+                return;
+            }
+
+            _availableVersionText = FormatVersion(result.LatestVersion ?? result.CurrentVersion);
+            if (result.IsUpdateAvailable)
+            {
+                _availableUpdate = result.Manifest;
+                _updateWorkflowState = UpdateWorkflowState.Available;
+                MouseKeeperLog.Write($"Update available. Current={CurrentVersionText}, Latest={_availableVersionText}");
+                UpdateState();
+
+                if (!userInitiated)
+                {
+                    ShowTrayBalloon(
+                        T("UpdatesAvailableBalloonTitle"),
+                        string.Format(T("UpdatesAvailableBalloonBody"), _availableVersionText ?? CurrentVersionText));
+                }
+
+                return;
+            }
+
+            _availableUpdate = null;
+            _downloadedInstallerPath = null;
+            _updateWorkflowState = UpdateWorkflowState.UpToDate;
+            MouseKeeperLog.Write($"Application is up to date. Current={CurrentVersionText}");
+            UpdateState();
         }
-        else
+        finally
         {
-            key.DeleteValue(StartupValueName, false);
+            _updateLock.Release();
+        }
+    }
+
+    public async Task InstallUpdateAsync()
+    {
+        if (!IsSelfUpdateSupported)
+        {
+            _updateWorkflowState = UpdateWorkflowState.Unsupported;
+            UpdateState();
+            return;
+        }
+
+        if (_availableUpdate is null)
+        {
+            await CheckForUpdatesAsync(userInitiated: true);
+            if (_availableUpdate is null)
+            {
+                return;
+            }
+        }
+
+        await _updateLock.WaitAsync();
+        try
+        {
+            var installerPath = _downloadedInstallerPath;
+            if (string.IsNullOrWhiteSpace(installerPath) || !File.Exists(installerPath))
+            {
+                _updateWorkflowState = UpdateWorkflowState.Downloading;
+                _updateErrorMessage = null;
+                UpdateState();
+
+                installerPath = await _updateService.DownloadInstallerAsync(_availableUpdate);
+                _downloadedInstallerPath = installerPath;
+                MouseKeeperLog.Write($"Update installer downloaded to {installerPath}");
+            }
+
+            _updateWorkflowState = UpdateWorkflowState.Applying;
+            UpdateState();
+            LaunchUpdaterAndExit(installerPath);
+        }
+        catch (Exception ex)
+        {
+            _updateErrorMessage = ex.Message;
+            _updateWorkflowState = UpdateWorkflowState.Error;
+            MouseKeeperLog.Write($"Update install failed: {ex}");
+            UpdateState();
+        }
+        finally
+        {
+            _updateLock.Release();
         }
     }
 
@@ -317,6 +472,59 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
         System.Windows.Application.Current?.Shutdown();
     }
 
+    public void OpenUpdateChangelog()
+    {
+        if (_availableUpdate is null)
+        {
+            return;
+        }
+
+        var targetUrl = !string.IsNullOrWhiteSpace(_availableUpdate.ChangelogUrl)
+            ? _availableUpdate.ChangelogUrl
+            : _availableUpdate.ReleaseNotesUrl;
+
+        if (string.IsNullOrWhiteSpace(targetUrl))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = targetUrl,
+            UseShellExecute = true
+        });
+    }
+
+    private void ExecuteTrayUpdateAction()
+    {
+        if (CanInstallUpdate)
+        {
+            _ = InstallUpdateAsync();
+            return;
+        }
+
+        _ = CheckForUpdatesAsync(userInitiated: true);
+    }
+
+    private void ApplyStartupPreference()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true);
+        if (key is null)
+        {
+            return;
+        }
+
+        if (_config.StartWithWindows)
+        {
+            var exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+            key.SetValue(StartupValueName, $"\"{exePath}\"");
+        }
+        else
+        {
+            key.DeleteValue(StartupValueName, false);
+        }
+    }
+
     private void ApplyLanguageToThread()
     {
         var culture = AppLocalizer.ResolveCulture(_config.SelectedLanguage);
@@ -331,10 +539,12 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
             T("MenuOpenDashboard"),
             T("MenuStartProtection"),
             T("MenuPauseProtection"),
+            CanInstallUpdate ? T("UpdatesButtonInstall") : T("MenuCheckUpdates"),
             T("MenuHelp"),
             T("MenuExit"),
             !IsRunning,
-            IsRunning);
+            IsRunning,
+            CanCheckForUpdates || CanInstallUpdate);
     }
 
     private string GetLocalizedMonitorRole(MonitorInfo screen, int index)
@@ -452,6 +662,64 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
         }));
     }
 
+    private void LaunchUpdaterAndExit(string installerPath)
+    {
+        if (!File.Exists(AppPaths.InstalledUpdaterPath))
+        {
+            throw new FileNotFoundException("The updater executable was not found.", AppPaths.InstalledUpdaterPath);
+        }
+
+        foreach (var staleUpdater in Directory.GetFiles(AppPaths.UpdateDirectory, "MouseTool.Updater.*.exe"))
+        {
+            try
+            {
+                File.Delete(staleUpdater);
+            }
+            catch
+            {
+                // Best-effort cleanup only.
+            }
+        }
+
+        var updaterRuntimePath = Path.Combine(AppPaths.UpdateDirectory, $"MouseTool.Updater.{Guid.NewGuid():N}.exe");
+        File.Copy(AppPaths.InstalledUpdaterPath, updaterRuntimePath, overwrite: true);
+
+        var arguments = string.Join(" ",
+            $"--pid {Process.GetCurrentProcess().Id}",
+            $"--installer \"{installerPath}\"",
+            $"--app-dir \"{AppPaths.InstallDirectory}\"",
+            $"--app-exe \"{AppPaths.MainExecutablePath}\"");
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = updaterRuntimePath,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = AppPaths.UpdateDirectory
+        });
+
+        ShowTrayBalloon(T("UpdatesApplyingBalloonTitle"), string.Format(T("UpdatesApplyingBalloonBody"), _availableVersionText ?? CurrentVersionText));
+        ExitApplication();
+    }
+
+    private UpdateWorkflowState DetectInitialUpdateState()
+    {
+        return IsSelfUpdateSupported ? UpdateWorkflowState.UpToDate : UpdateWorkflowState.Unsupported;
+    }
+
+    private static string FormatVersion(Version? version)
+    {
+        if (version is null)
+        {
+            return "0.0.0";
+        }
+
+        return version.Build >= 0
+            ? $"{version.Major}.{version.Minor}.{version.Build}"
+            : $"{version.Major}.{version.Minor}";
+    }
+
     public void Dispose()
     {
         SystemEvents.DisplaySettingsChanged -= OnSystemDisplaySettingsChanged;
@@ -460,6 +728,17 @@ internal sealed class MouseKeeperApplicationContext : IDisposable
         _trayIcon.Dispose();
         _engine?.Dispose();
         _engine = null;
+        _updateLock.Dispose();
+    }
+
+    private enum UpdateWorkflowState
+    {
+        Unsupported,
+        Checking,
+        UpToDate,
+        Available,
+        Downloading,
+        Applying,
+        Error
     }
 }
-

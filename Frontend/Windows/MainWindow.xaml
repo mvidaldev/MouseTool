@@ -249,20 +249,37 @@
             </TabItem>
 
             <TabItem x:Name="DiagnosticsTab">
-                <Grid Margin="14">
-                    <Border Style="{StaticResource CardBorderStyle}">
-                        <StackPanel>
-                            <TextBlock x:Name="DiagnosticsTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
-                            <TextBlock x:Name="DiagnosticsBodyText" Margin="0,12,0,18" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button x:Name="EnableLogButton" Style="{StaticResource PrimaryButtonStyle}" Click="EnableLogButton_Click"/>
-                                <Button x:Name="DisableLogButton" Style="{StaticResource ActionButtonStyle}" Click="DisableLogButton_Click"/>
-                                <Button x:Name="OpenLogButton" Style="{StaticResource ActionButtonStyle}" Click="OpenLogButton_Click"/>
+                <ScrollViewer Margin="14" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagnosticsTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <TextBlock x:Name="DiagnosticsBodyText" Margin="0,12,0,18" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="EnableLogButton" Style="{StaticResource PrimaryButtonStyle}" Click="EnableLogButton_Click"/>
+                                    <Button x:Name="DisableLogButton" Style="{StaticResource ActionButtonStyle}" Click="DisableLogButton_Click"/>
+                                    <Button x:Name="OpenLogButton" Style="{StaticResource ActionButtonStyle}" Click="OpenLogButton_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="LogStatusText" Margin="0,18,0,0" FontSize="14" FontWeight="SemiBold"/>
                             </StackPanel>
-                            <TextBlock x:Name="LogStatusText" Margin="0,18,0,0" FontSize="14" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" BorderBrush="#155390" BorderThickness="0,4,0,0">
+                            <StackPanel>
+                                <TextBlock x:Name="UpdatesTitleText" FontSize="22" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <TextBlock x:Name="UpdatesBodyText" Margin="0,12,0,12" TextWrapping="Wrap" FontSize="15" Foreground="#586476"/>
+                                <TextBlock x:Name="UpdatesCurrentVersionTextBlock" FontSize="14" FontWeight="SemiBold" Foreground="#155390"/>
+                                <TextBlock x:Name="UpdatesStatusTitleText" Margin="0,18,0,6" FontSize="17" FontWeight="SemiBold" Foreground="#21303D"/>
+                                <TextBlock x:Name="UpdatesStatusBodyText" TextWrapping="Wrap" FontSize="14" Foreground="#586476"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                                    <Button x:Name="CheckUpdatesButton" Style="{StaticResource ActionButtonStyle}" Click="CheckUpdatesButton_Click"/>
+                                    <Button x:Name="InstallUpdateButton" Style="{StaticResource PrimaryButtonStyle}" Click="InstallUpdateButton_Click"/>
+                                    <Button x:Name="ViewChangelogButton" Style="{StaticResource ActionButtonStyle}" Click="ViewChangelogButton_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 

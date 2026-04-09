@@ -95,6 +95,14 @@ internal partial class MainWindow : Window
         EnableLogButton.Content = T("DiagnosticsEnableLog");
         DisableLogButton.Content = T("DiagnosticsDisableLog");
         OpenLogButton.Content = T("DiagnosticsOpenLog");
+        UpdatesTitleText.Text = T("UpdatesTitle");
+        UpdatesBodyText.Text = T("UpdatesBody");
+        UpdatesCurrentVersionTextBlock.Text = _context.UpdateCurrentVersionText;
+        UpdatesStatusTitleText.Text = _context.UpdateStatusTitle;
+        UpdatesStatusBodyText.Text = _context.UpdateStatusBody;
+        CheckUpdatesButton.Content = T("UpdatesButtonCheck");
+        InstallUpdateButton.Content = T("UpdatesButtonInstall");
+        ViewChangelogButton.Content = T("UpdatesButtonChangelog");
 
         StartButton.Content = T("FooterStart");
         StopButton.Content = T("FooterPause");
@@ -116,6 +124,9 @@ internal partial class MainWindow : Window
         StopButton.IsEnabled = running;
         EnableLogButton.IsEnabled = !_context.LoggingEnabled;
         DisableLogButton.IsEnabled = _context.LoggingEnabled;
+        CheckUpdatesButton.IsEnabled = _context.CanCheckForUpdates;
+        InstallUpdateButton.IsEnabled = _context.CanInstallUpdate;
+        ViewChangelogButton.IsEnabled = _context.CanOpenUpdateChangelog;
         UpdateSaveState(_hasPendingChanges ? T("SaveStatusPending") : T("SaveStatusCurrent"), _hasPendingChanges);
 
         _isRefreshing = false;
@@ -199,6 +210,15 @@ internal partial class MainWindow : Window
         DisableLogButton.Content = "Disable log";
         OpenLogButton.Content = "Open log file";
         LogStatusText.Text = "Logging is disabled";
+        UpdatesTitleText.Text = "App updates";
+        UpdatesBodyText.Text = "Check for a newer installer package and update MouseTool without manually reinstalling it.";
+        UpdatesCurrentVersionTextBlock.Text = "Current version: 2.0.4";
+        UpdatesStatusTitleText.Text = "Auto-update unavailable";
+        UpdatesStatusBodyText.Text = "Design preview mode does not include the installed updater workflow.";
+        CheckUpdatesButton.Content = "Check for updates";
+        InstallUpdateButton.Content = "Install update";
+        ViewChangelogButton.Content = "View changelog";
+        ViewChangelogButton.IsEnabled = false;
         StartButton.Content = "Start protection";
         StopButton.Content = "Pause protection";
         TrayButton.Content = "Minimize to tray";
@@ -315,6 +335,28 @@ internal partial class MainWindow : Window
     private void EnableLogButton_Click(object sender, RoutedEventArgs e) => _context?.EnableLogging();
     private void DisableLogButton_Click(object sender, RoutedEventArgs e) => _context?.DisableLogging();
     private void OpenLogButton_Click(object sender, RoutedEventArgs e) => _context?.OpenLogFile();
+    private async void CheckUpdatesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        await _context.CheckForUpdatesAsync(userInitiated: true);
+    }
+
+    private async void InstallUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        await _context.InstallUpdateAsync();
+    }
+
+    private void ViewChangelogButton_Click(object sender, RoutedEventArgs e) => _context?.OpenUpdateChangelog();
+
     private void HelpButton_Click(object sender, RoutedEventArgs e) => _context?.OpenHelpFile();
     private void CoffeeButton_Click(object sender, RoutedEventArgs e) => _context?.OpenCoffeeLink();
 
