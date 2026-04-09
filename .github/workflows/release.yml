@@ -70,7 +70,6 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $false
           $tag = '${{ github.ref_name }}'
           $title = 'MouseTool v${{ steps.version.outputs.release_version }}'
           $files = @(
@@ -80,8 +79,16 @@ jobs:
             'release/update.json'
           )
 
-          & gh release view $tag --repo '${{ github.repository }}' 1>$null 2>$null
-          $releaseExists = ($LASTEXITCODE -eq 0)
+          $releaseExists = $false
+          try {
+            & gh release view $tag --repo '${{ github.repository }}' 1>$null
+            if ($LASTEXITCODE -eq 0) {
+              $releaseExists = $true
+            }
+          }
+          catch {
+            $releaseExists = $false
+          }
 
           if ($releaseExists) {
             & gh release upload $tag $files --clobber --repo '${{ github.repository }}'
